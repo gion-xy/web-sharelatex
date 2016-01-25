@@ -1,7 +1,7 @@
 define [
-	"ide/editor/directives/aceEditor/spell-check/HighlightedWordManager"
+	"ide/editor/directives/aceEditor/spell-check/AnnotationManager"
 	"ace/ace"
-], (HighlightedWordManager) ->
+], (AnnotationManager) ->
 	Range = ace.require("ace/range").Range
 
 	class SpellCheckManager
@@ -9,7 +9,7 @@ define [
 			$(document.body).append @element.find(".spell-check-menu")
 			
 			@updatedLines = []
-			@highlightedWordManager = new HighlightedWordManager(@editor)
+			@annotationManager = new AnnotationManager(@editor)
 
 			@$scope.$watch "spellCheckLanguage", (language, oldLanguage) =>
 				if language != oldLanguage and oldLanguage?
@@ -50,19 +50,19 @@ define [
 				@learnWord(highlight)
 
 		runFullCheck: () ->
-			@highlightedWordManager.clearRows()
+			@annotationManager.clearRows()
 			if @$scope.spellCheckLanguage and @$scope.spellCheckLanguage != ""
 				@runSpellCheck()
 
 		runCheckOnChange: (e) ->
 			if @$scope.spellCheckLanguage and @$scope.spellCheckLanguage != ""
-				@highlightedWordManager.applyChange(e)
+				@annotationManager.applyChange(e)
 				@markLinesAsUpdated(e)
 				@runSpellCheckSoon()
 
 		openContextMenu: (e) ->
 			position = @editor.renderer.screenToTextCoordinates(e.clientX, e.clientY)
-			highlight = @highlightedWordManager.findHighlightWithinRange
+			highlight = @annotationManager.findHighlightWithinRange
 				start: position
 				end:   position
 
@@ -101,11 +101,11 @@ define [
 
 		learnWord: (highlight) ->
 			@apiRequest "/learn", word: highlight.word
-			@highlightedWordManager.removeWord highlight.word
+			@annotationManager.removeWord highlight.word
 
 		getHighlightedWordAtCursor: () ->
 			cursor = @editor.getCursorPosition()
-			highlight = @highlightedWordManager.findHighlightWithinRange
+			highlight = @annotationManager.findHighlightWithinRange
 				start: cursor
 				end: cursor
 			return highlight
@@ -149,16 +149,18 @@ define [
 
 				if linesToProcess?
 					for shouldProcess, row in linesToProcess
-						@highlightedWordManager.clearRows(row, row) if shouldProcess
+						@annotationManager.clearRows(row, row) if shouldProcess
 				else
-					@highlightedWordManager.clearRows()
+					@annotationManager.clearRows()
 
 				for misspelling in result.misspellings
 					word = words[misspelling.index]
 					position = positions[misspelling.index]
-					@highlightedWordManager.addHighlight
+					@annotationManager.addAnnotation
+						type: "spelling"
 						column: position.column
 						row: position.row
+						length: word.length
 						word: word
 						suggestions: misspelling.suggestions
 
